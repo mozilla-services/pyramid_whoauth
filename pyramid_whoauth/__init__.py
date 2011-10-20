@@ -41,6 +41,7 @@ from zope.interface import implements
 
 from pyramid.interfaces import IAuthenticationPolicy
 from pyramid.security import Everyone, Authenticated
+from pyramid.authorization import ACLAuthorizationPolicy
 from pyramid.httpexceptions import HTTPFound
 from pyramid.response import Response
 
@@ -246,6 +247,11 @@ def includeme(config):
     # Use the settings to construct an AuthenticationPolicy.
     authn_policy = WhoAuthenticationPolicy.from_settings(settings)
     config.set_authentication_policy(authn_policy)
+    # Hook up a default AuthorizationPolicy.
+    # ACLAuthorizationPolicy is usually what you want.
+    # If the app configures one explicitly then this will get overridden.
+    authz_policy = ACLAuthorizationPolicy()
+    config.set_authorization_policy(authz_policy)
     # Hook up the policy's challenge_view as the "forbidden view"
     config.add_view(authn_policy.challenge_view,
                     context="pyramid.exceptions.Forbidden")
