@@ -63,6 +63,10 @@ class WhoAuthenticationPolicy(object):
         #    [identifiers]
         #    plugins = blah
         for name, value in who_settings.iteritems():
+            if isinstance(value, (list, tuple)):
+                value = " ".join(value)
+            else:
+                value = str(value)
             try:
                 section, var = name.rsplit(".", 1)
             except ValueError:
@@ -193,9 +197,18 @@ def includeme(config):
         * default "login" and "logout" routes and views.
 
     """
-    # Extract repoze.who settings from the pyramid-wide settings,
-    # and use them to construct an AuthenticationPolicy.
-    settings = config.get_settings()
+    # Grab the pyramid-wide settings, to look for any auth config.
+    settings = config.get_settings().copy()
+    # As a compatability hook for mozsvc, also load prefixed sections
+    # from the Config object if present.
+    mozcfg = settings.get("config")
+    if mozcfg is not None:
+        for section in mozcfg.sections():
+            if section.startswith("who:"):
+                setting_prefix = section.replace(":", ".")
+                for name, value in mozcfg.get_map(section).iteritems():
+                    settings[setting_prefix + "." + name] = value
+    # Use the settings to construct an AuthenticationPolicy.
     authn_policy = WhoAuthenticationPolicy.from_settings(settings)
     config.set_authentication_policy(authn_policy)
     # Hook up the policy's challenge_view as the "forbidden view"
