@@ -147,7 +147,7 @@ class WhoAuthenticationPolicy(object):
         groups = self._callback(userid, request)
         if groups is None:
             return principals
-        principals.append(userid)
+        principals.insert(0,userid)
         principals.append(Authenticated)
         principals.extend(groups)
         return principals
