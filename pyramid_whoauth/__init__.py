@@ -18,7 +18,7 @@
 # the Initial Developer. All Rights Reserved.
 #
 # Contributor(s):
-#   Ryan Kelly (ryan@rfk.id.au)
+#   Ryan Kelly (rkelly@mozilla.com)
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -34,8 +34,18 @@
 #
 # ***** END LICENSE BLOCK *****
 """
+
 repoze.who auth policy for pyramid.
+
 """
+
+__ver_major__ = 0
+__ver_minor__ = 1
+__ver_patch__ = 0
+__ver_sub__ = ""
+__ver_tuple__ = (__ver_major__, __ver_minor__, __ver_patch__, __ver_sub__)
+__version__ = "%d.%d.%d%s" % __ver_tuple__
+
 
 from zope.interface import implements
 
@@ -81,7 +91,7 @@ class WhoAuthenticationPolicy(object):
                 continue
             who_settings[name[len(prefix):]] = value
         # Load the callback function if specified.
-        callback = who_settings.get("config_file")
+        callback = who_settings.get("callback")
         if callback is not None:
             callback = resolveDotted(callback)
             if callback is not None:
@@ -110,7 +120,7 @@ class WhoAuthenticationPolicy(object):
             else:
                 who_ini_lines.append("[%s]" % (section.replace(".", ":"),))
                 who_ini_lines.append("%s = %s" % (var, value))
-        # Now we can parse that config using who's own machinery.
+        # Now we can parse that config using repoze.who's own machinery.
         parser = WhoConfig(who_settings.get("here", ""))
         parser.parse("\n".join(who_ini_lines))
 
@@ -233,25 +243,17 @@ def includeme(config):
         * default "login" and "logout" routes and views.
 
     """
-    # Grab the pyramid-wide settings, to look for any auth config.
-    settings = config.get_settings().copy()
-    # As a compatability hook for mozsvc, also load prefixed sections
-    # from the Config object if present.
-    mozcfg = settings.get("config")
-    if mozcfg is not None:
-        for section in mozcfg.sections():
-            if section.startswith("who:"):
-                setting_prefix = section.replace(":", ".")
-                for name, value in mozcfg.get_map(section).iteritems():
-                    settings[setting_prefix + "." + name] = value
-    # Use the settings to construct an AuthenticationPolicy.
-    authn_policy = WhoAuthenticationPolicy.from_settings(settings)
-    config.set_authentication_policy(authn_policy)
     # Hook up a default AuthorizationPolicy.
     # ACLAuthorizationPolicy is usually what you want.
     # If the app configures one explicitly then this will get overridden.
+    # In auto-commit mode this needs to be set for adding an authn policy.
     authz_policy = ACLAuthorizationPolicy()
     config.set_authorization_policy(authz_policy)
+    # Grab the pyramid-wide settings, to look for any auth config.
+    settings = config.get_settings()
+    # Use the settings to construct an AuthenticationPolicy.
+    authn_policy = WhoAuthenticationPolicy.from_settings(settings)
+    config.set_authentication_policy(authn_policy)
     # Hook up the policy's challenge_view as the "forbidden view"
     config.add_view(authn_policy.challenge_view,
                     context="pyramid.exceptions.Forbidden")

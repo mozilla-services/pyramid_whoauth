@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(here, 'README.txt')) as f:
+with open(os.path.join(here, 'README.rst')) as f:
     README = f.read()
 
 with open(os.path.join(here, 'CHANGES.txt')) as f:
@@ -13,7 +13,7 @@ with open(os.path.join(here, 'CHANGES.txt')) as f:
 requires = ['pyramid', 'repoze.who', 'unittest2']
 
 setup(name='pyramid_whoauth',
-      version='0.1',
+      version='0.1.0',
       description='pyramid_whoauth',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
@@ -21,9 +21,9 @@ setup(name='pyramid_whoauth',
         "Framework :: Pylons",
         "Topic :: Internet :: WWW/HTTP",
         ],
-      author='',
-      author_email='',
-      url='',
+      author='Mozilla Services',
+      author_email='services-dev@mozilla.org',
+      url='https://github.com/mozilla-services/pyramid_whoauth',
       keywords='web pyramid pylons authentication',
       packages=find_packages(),
       include_package_data=True,
