@@ -31,7 +31,7 @@ might have the following::
     who.plugin.basicauth.use = repoze.who.plugins.basicauth:make_plugin
     who.plugin.basicauth.realm = MyRealm
 
-    who.plugin.authtkt.use = repoe.who.plugins.auth_tkt:make_plugin
+    who.plugin.authtkt.use = repoze.who.plugins.auth_tkt:make_plugin
     who.plugin.authtkt.secret = Oh So Secret!
 
     who.identifiers.plugins = authtkt basicauth
