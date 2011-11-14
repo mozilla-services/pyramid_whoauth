@@ -69,8 +69,22 @@ class WhoAuthenticationPolicy(object):
     """Pyramid authentication policy built on top of repoze.who.
 
     This is a pyramid authentication policy built on top of the repoze.who
-    API.  It's a lot like the one found in the "pyramid_who" package, but
-    has some API tweaks, more configuration options and some default views.
+    API.  It takes a repoze.who API factory and an optional groupfinder
+    callback, and does a straightforward transformation between the repoze.who
+    API methods and those of pyramid.
+
+    This class also provides some convenience methods which you may use as
+    required for your application:
+
+        * challenge_view:  a pyramid view that challenges for credentials
+                           by calling into the repoze.who API.
+
+        * login_view:  a view that authenticates its POST parameters via
+                       repoze.who and then redirects.
+
+        * logout_view:  a view that issues forget headers from repoze.who
+                        and then redirects.
+
     """
 
     implements(IAuthenticationPolicy)
@@ -134,6 +148,12 @@ class WhoAuthenticationPolicy(object):
         return cls(api_factory, callback)
 
     def authenticated_userid(self, request):
+        """Get the authenticated userid for the given request.
+
+        This method extracts the userid from the request and passes it
+        through two levels of authentication - the repoze.who authenticate
+        method, and the configured groupfinder callback.
+        """
         userid = self.unauthenticated_userid(request)
         if userid is None:
             return None
@@ -142,15 +162,29 @@ class WhoAuthenticationPolicy(object):
         return userid
 
     def unauthenticated_userid(self, request):
+        """Get the unauthenticated userid for the given request.
+
+        This method extracts the claimed userid from the request.  Since
+        repoze.who does not provide an API to extract the userid without
+        authenticating it, the only different between this method and the
+        authentication version is that it does not invoke the groupfinder
+        callback function.
+        """
         identity = request.environ.get("repoze.who.identity")
         if identity is None:
             api = self._api_factory(request.environ)
             identity = api.authenticate()
-        if identity is None:
-            return None
+            # XXX: we should respect repoze.who.application if set
+            if identity is None:
+                return None
         return identity["repoze.who.userid"]
 
     def effective_principals(self, request):
+        """Get the list of effective principals for the given request.
+
+        This method combines the authenticated userid return by repoze.who
+        with the list of groups returned by the groupfinder callback, if any.
+        """
         principals = [Everyone]
         userid = self.unauthenticated_userid(request)
         if userid is None:
@@ -164,12 +198,17 @@ class WhoAuthenticationPolicy(object):
         return principals
 
     def remember(self, request, principal, **kw):
-        headers = []
+        """Get headers to remember the given principal.
+
+        This method calls the remember() method on all configured repoze.who
+        plugins, and returns the combined list of headers.
+        """
         identity = {"repoze.who.userid": principal}
         api = self._api_factory(request.environ)
         #  Give all IIdentifiers a chance to remember the login.
         #  This is the same logic as inside the api.login() method,
         #  but without repeating the authentication step.
+        headers = []
         for name, plugin in api.identifiers:
             i_headers = plugin.remember(request.environ, identity)
             if i_headers is not None:
@@ -177,6 +216,11 @@ class WhoAuthenticationPolicy(object):
         return headers
 
     def forget(self, request):
+        """Get headers to forget the identify of the given request.
+
+        This method calls the repoze.who logout() method, which in turn calls
+        the forget() method on all configured repoze.who plugins.
+        """
         api = self._api_factory(request.environ)
         return api.logout() or []
 
@@ -240,7 +284,7 @@ def includeme(config):
 
         * add a repoze.who-based AuthenticationPolicy.
         * add a "forbidden view" to invoke repoze.who when auth is required.
-        * default "login" and "logout" routes and views.
+        * add default "login" and "logout" routes and views.
 
     """
     # Hook up a default AuthorizationPolicy.
@@ -251,7 +295,7 @@ def includeme(config):
     config.set_authorization_policy(authz_policy)
     # Grab the pyramid-wide settings, to look for any auth config.
     settings = config.get_settings()
-    # Use the settings to construct an AuthenticationPolicy.
+    # Use the settings to construct a WhoAuthenticationPolicy.
     authn_policy = WhoAuthenticationPolicy.from_settings(settings)
     config.set_authentication_policy(authn_policy)
     # Hook up the policy's challenge_view as the "forbidden view"
@@ -269,3 +313,4 @@ def includeme(config):
     config.add_route(logout_route, logout_path)
     config.add_view(authn_policy.logout_view,
                     route_name=logout_route)
+    # XXX: set up a tween to call remember() or forget() on each egress

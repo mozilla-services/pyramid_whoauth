@@ -18,7 +18,7 @@ it into an pyramid IAuthenticationPolicy::
     authn_policy = WhoAuthenticationPolicy(api_factory)
     config.set_authentication_policy(authn_policy)
 
-This will load the repoze.who configuration from the specific config file
+This will load the repoze.who configuration from the specified config file
 and hook it into Pyramid.
 
 For convenience, you can alo specify all of the repoze.who configuration
@@ -40,7 +40,7 @@ might have the following::
 
 This configures repoze.who to use the "basicauth" and "auth_tkt" plugins,
 using pyramid's dotted-settings style rather than the repoze.who config file.
-Then, it is a simple matter of including the pyramid_whoauth module into your
+Then it is a simple matter of including the pyramid_whoauth module into your
 configurator::
 
     config.include("pyramid_whoauth")
@@ -51,4 +51,5 @@ this will also set up some convenience views for your application:
     * a forbidden view that challenges for credentials via repoze.who
     * a login view that authenticates any credentials submitted via POST
     * a logout view that sends forget headers when accessed
+    * a tween that calls the repoze.who "remember" method for each response
 
