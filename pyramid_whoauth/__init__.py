@@ -175,6 +175,9 @@ class WhoAuthenticationPolicy(object):
         if identity is None:
             api = self.api_factory(request.environ)
             identity = api.authenticate()
+            # XXX: should we try to respect plugins that set 
+            #      environ["repoze.who.application"] in order to
+            #      manage their own redirects?
             if identity is None:
                 return None
         return identity["repoze.who.userid"]
@@ -280,13 +283,9 @@ class WhoAuthenticationPolicy(object):
 def whoauth_tween_factory(handler, registry):
     """Tween factory for managing repoze.who egress hooks.
 
-    This is a pyramid tween factory that duplicates the egress logic from
-    the repoze.who middleware.  Its responsibilities include:
-
-        * calling the challenge decider, and:
-            * if a challenge is not necessary, sending remember headers
-            * if a challenge is necessary, sending the appropriate response
-
+    This is a pyramid tween factory that ensures api.remember() is called on
+    every response.  This is the behvaiour expected by many repoze.who
+    plugins and guaranteed by the repoze.who middleware.
     """
     # Find an appropriate API factory.
     # With luck one has been registered into the application regsitry.
@@ -303,14 +302,16 @@ def whoauth_tween_factory(handler, registry):
     # Create and return the tween.
     def whoauth_tween(request):
         response = handler(request)
-        api = api_factory(request.environ)
-        if api is not None:
-            # Remember the identity if there is one.
-            # This depends on the app calling api.logout() for a challenge
-            # view, so that the identity is removed from the environ and we
-            # don't end up sending conflicting headers.
-            identity = request.environ.get("repoze.who.identity", {})
-            if identity:
+        # Remember the identity if there is one.
+        # This depends on the app calling api.logout() for a challenge
+        # view, so that the identity is removed from the environ and we
+        # don't end up sending conflicting headers.
+        identity = request.environ.get("repoze.who.identity", {})
+        if identity:
+            # Grab the API if there is an identity.  This prevents
+            # useless overhead for e.g. static resource requests.
+            api = api_factory(request.environ)
+            if api is not None:
                 #  Give all IIdentifiers a chance to remember the login.
                 #  This is the same logic as inside the api.login() method,
                 #  but without repeating the authentication step.
