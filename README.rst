@@ -46,7 +46,7 @@ configurator::
     config.include("pyramid_whoauth")
 
 In addition to configuring the repoze.who API factory from the given settings,
-this will also set up some convenience views for your application:
+this will also set up some extra conveniences for your application:
 
     * a forbidden view that challenges for credentials via repoze.who
     * a login view that authenticates any credentials submitted via POST

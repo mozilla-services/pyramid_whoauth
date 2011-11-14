@@ -56,7 +56,7 @@ from pyramid.httpexceptions import HTTPFound
 from pyramid.response import Response
 
 from repoze.who.config import WhoConfig
-from repoze.who.api import APIFactory
+from repoze.who.api import APIFactory, IAPIFactory, get_api
 from repoze.who.utils import resolveDotted
 
 
@@ -92,7 +92,7 @@ class WhoAuthenticationPolicy(object):
     def __init__(self, api_factory, callback=None):
         if callback is None:
             callback = _null_callback
-        self._api_factory = api_factory
+        self.api_factory = api_factory
         self._callback = callback
 
     @classmethod
@@ -172,9 +172,8 @@ class WhoAuthenticationPolicy(object):
         """
         identity = request.environ.get("repoze.who.identity")
         if identity is None:
-            api = self._api_factory(request.environ)
+            api = self.api_factory(request.environ)
             identity = api.authenticate()
-            # XXX: we should respect repoze.who.application if set
             if identity is None:
                 return None
         return identity["repoze.who.userid"]
@@ -192,7 +191,7 @@ class WhoAuthenticationPolicy(object):
         groups = self._callback(userid, request)
         if groups is None:
             return principals
-        principals.insert(0,userid)
+        principals.insert(0, userid)
         principals.append(Authenticated)
         principals.extend(groups)
         return principals
@@ -204,7 +203,7 @@ class WhoAuthenticationPolicy(object):
         plugins, and returns the combined list of headers.
         """
         identity = {"repoze.who.userid": principal}
-        api = self._api_factory(request.environ)
+        api = self.api_factory(request.environ)
         #  Give all IIdentifiers a chance to remember the login.
         #  This is the same logic as inside the api.login() method,
         #  but without repeating the authentication step.
@@ -221,21 +220,25 @@ class WhoAuthenticationPolicy(object):
         This method calls the repoze.who logout() method, which in turn calls
         the forget() method on all configured repoze.who plugins.
         """
-        api = self._api_factory(request.environ)
+        api = self.api_factory(request.environ)
         return api.logout() or []
 
-    def challenge_view(self, request):
+    def challenge_view(self, request, *challenge_args):
         """View that challenges for credentials using repoze.who.
 
         This method provides a pyramid view that uses the repoze.who challenge
         API to prompt for credentials.  If no challenge can be generated then
         it displays a "403 Forbidden" page.
         """
-        api = self._api_factory(request.environ)
-        challenge_app = api.challenge()
+        api = self.api_factory(request.environ)
+        challenge_app = api.challenge(*challenge_args)
         if challenge_app is not None:
-            return request.get_response(challenge_app)
-        return Response("<h1>Forbidden</h1>", status="403 Forbidden")
+            response = request.get_response(challenge_app)
+        else:
+            response = Response("<h1>Forbidden</h1>", status="403 Forbidden")
+        # Make sure all IIdentifier plugins forget the login.
+        response.headerlist.extend(self.forget(request))
+        return response
 
     def login_view(self, request):
         """View to process login credentials and remember the user.
@@ -253,7 +256,7 @@ class WhoAuthenticationPolicy(object):
         if userid is not None:
             headers = self.remember(request, userid)
         else:
-            api = self._api_factory(request.environ)
+            api = self.api_factory(request.environ)
             userid, headers = api.login(dict(request.params))
         # If that worked, send them back to where they came from.
         # If not, render the usual challenge view.
@@ -272,6 +275,47 @@ class WhoAuthenticationPolicy(object):
         return HTTPFound(location=came_from, headers=headers)
 
 
+def whoauth_tween_factory(handler, registry):
+    """Tween factory for managing repoze.who egress hooks.
+
+    This is a pyramid tween factory that duplicates the egress logic from
+    the repoze.who middleware.  Its responsibilities include:
+
+        * calling the challenge decider, and:
+            * if a challenge is not necessary, sending remember headers
+            * if a challenge is necessary, sending the appropriate response
+
+    """
+    # Find an appropriate API factory.
+    # With luck one has been registered into the application regsitry.
+    # Failing that, we look on the registered IAuthenticationPolicy.
+    # Failing even that, we fall back to looking in the request environ.
+    api_factory = registry.queryUtility(IAPIFactory)
+    if api_factory is None:
+        authn_policy = registry.queryUtility(IAuthenticationPolicy)
+        if authn_policy is not None:
+            try:
+                api_factory = authn_policy.api_factory
+            except AttributeError:
+                pass
+        if api_factory is None:
+            api_factory = get_api
+
+    # Create and return the tween.
+    def whoauth_tween(request):
+        response = handler(request)
+        api = api_factory(request.environ)
+        if api is not None:
+            # Remember the identity if there is one.
+            # This depends on the app calling api.logout() for a challenge
+            # view, so that the identity is removed from the environ and we
+            # don't end up sending conflicting headers.
+            response.headerlist.extend(api.remember())
+        return response
+
+    return whoauth_tween
+
+
 def includeme(config):
     """Include default whoauth settings into a pyramid config.
 
@@ -285,6 +329,7 @@ def includeme(config):
         * add a repoze.who-based AuthenticationPolicy.
         * add a "forbidden view" to invoke repoze.who when auth is required.
         * add default "login" and "logout" routes and views.
+        * add a tween to call remember() or challenge() on response egress.
 
     """
     # Hook up a default AuthorizationPolicy.
@@ -293,24 +338,33 @@ def includeme(config):
     # In auto-commit mode this needs to be set for adding an authn policy.
     authz_policy = ACLAuthorizationPolicy()
     config.set_authorization_policy(authz_policy)
-    # Grab the pyramid-wide settings, to look for any auth config.
+
+    # Build a WhoAuthenticationPolicy from the deployment settings.
     settings = config.get_settings()
-    # Use the settings to construct a WhoAuthenticationPolicy.
     authn_policy = WhoAuthenticationPolicy.from_settings(settings)
     config.set_authentication_policy(authn_policy)
+
     # Hook up the policy's challenge_view as the "forbidden view"
     config.add_view(authn_policy.challenge_view,
                     context="pyramid.exceptions.Forbidden")
+
     # Hook up the policy's login_view using configured path and route name.
     login_route = settings.get("who.login_route", "login")
     login_path = settings.get("who.login_path", "/login")
     config.add_route(login_route, login_path)
     config.add_view(authn_policy.login_view,
                     route_name=login_route)
+
     # Hook up the policy's logout_view using configured path and route name.
     logout_route = settings.get("who.logout_route", "logout")
     logout_path = settings.get("who.logout_path", "/logout")
     config.add_route(logout_route, logout_path)
     config.add_view(authn_policy.logout_view,
                     route_name=logout_route)
-    # XXX: set up a tween to call remember() or forget() on each egress
+
+    # Set up a tween to call remember() or challenge() on egress.
+    # Store the APIFactory on the registry for easy access.
+    def register_api_factory():
+        config.registry.registerUtility(authn_policy.api_factory, IAPIFactory)
+    config.action(IAPIFactory, register_api_factory)
+    config.add_tween("pyramid_whoauth.whoauth_tween_factory")

@@ -45,13 +45,11 @@ from pyramid.interfaces import IAuthenticationPolicy
 from zope.interface import implements
 from repoze.who.interfaces import IAuthenticator
 
-from pyramid_whoauth import WhoAuthenticationPolicy
-
 
 class DummyAuthenticator(object):
     """Authenticator that accepts login and password."""
     implements(IAuthenticator)
-    def authenticate(self, environ, identity):
+    def authenticate(self, environ, identity):  # NOQA
         if identity.get("login") == identity.get("password"):
             return identity.get("login")
 
