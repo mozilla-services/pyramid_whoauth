@@ -247,7 +247,7 @@ class WhoAuthenticationPolicy(object):
         to authenticate any submitted credentials, then redirects to
         whatever page the user was trying to view.  You can use it as
         a convenient redirection point for plugins that need to submit
-        credentials via POST.
+        credentials via POST, or as the target for a custom login form.
         """
         came_from = request.params.get("came_from", request.referer or "/")
         # Try to authenticate, either via standard plugin auth
@@ -334,7 +334,7 @@ def includeme(config):
         * add a repoze.who-based AuthenticationPolicy.
         * add a "forbidden view" to invoke repoze.who when auth is required.
         * add default "login" and "logout" routes and views.
-        * add a tween to call remember() or challenge() on response egress.
+        * add a tween to call remember() on response egress.
 
     """
     # Hook up a default AuthorizationPolicy.
