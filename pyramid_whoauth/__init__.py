@@ -52,6 +52,7 @@ from zope.interface import implements
 from pyramid.interfaces import IAuthenticationPolicy
 from pyramid.security import Everyone, Authenticated
 from pyramid.authorization import ACLAuthorizationPolicy
+from pyramid.exceptions import Forbidden
 from pyramid.httpexceptions import HTTPFound
 from pyramid.response import Response
 
@@ -259,10 +260,11 @@ class WhoAuthenticationPolicy(object):
             api = self.api_factory(request.environ)
             userid, headers = api.login(dict(request.params))
         # If that worked, send them back to where they came from.
-        # If not, render the usual challenge view.
-        if userid is None:
-            return self.challenge_view(request)
-        return HTTPFound(location=came_from, headers=headers)
+        if userid is not None:
+            return HTTPFound(location=came_from, headers=headers)
+        # If not, trigger the usual forbidden view.
+        # In theory this should post back to us again.
+        raise Forbidden()
 
     def logout_view(self, request):
         """View to forget the logged-in user.
