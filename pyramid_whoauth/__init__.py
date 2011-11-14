@@ -370,7 +370,7 @@ def includeme(config):
     config.add_view(authn_policy.logout_view,
                     route_name=logout_route)
 
-    # Set up a tween to call remember() or challenge() on egress.
+    # Set up a tween to call remember() on egress.
     # Store the APIFactory on the registry for easy access.
     def register_api_factory():
         config.registry.registerUtility(authn_policy.api_factory, IAPIFactory)
