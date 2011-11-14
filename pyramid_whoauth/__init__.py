@@ -308,13 +308,14 @@ def whoauth_tween_factory(handler, registry):
             # view, so that the identity is removed from the environ and we
             # don't end up sending conflicting headers.
             identity = request.environ.get("repoze.who.identity", {})
-            #  Give all IIdentifiers a chance to remember the login.
-            #  This is the same logic as inside the api.login() method,
-            #  but without repeating the authentication step.
-            for name, plugin in api.identifiers:
-                i_headers = plugin.remember(request.environ, identity)
-                if i_headers is not None:
-                    response.headerlist.extend(i_headers)
+            if identity:
+                #  Give all IIdentifiers a chance to remember the login.
+                #  This is the same logic as inside the api.login() method,
+                #  but without repeating the authentication step.
+                for name, plugin in api.identifiers:
+                    i_headers = plugin.remember(request.environ, identity)
+                    if i_headers is not None:
+                        response.headerlist.extend(i_headers)
         return response
 
     return whoauth_tween
