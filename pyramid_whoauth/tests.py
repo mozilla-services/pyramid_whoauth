@@ -88,13 +88,11 @@ def groupfinder(userid, request):
 
 GOOD_AUTHZ = {
   "test": "Basic " + base64.b64encode("test:test"),
-  "test2": "Basic " + base64.b64encode("test2:test2")
-}
+  "test2": "Basic " + base64.b64encode("test2:test2")}
 
 BAD_AUTHZ = {
   "test": "Basic " + base64.b64encode("test:badpwd"),
-  "test2": "Basic " + base64.b64encode("test2:horseyhorseyneigh")
-}
+  "test2": "Basic " + base64.b64encode("test2:horseyhorseyneigh")}
 
 SETTINGS = {
     "who.callback": "pyramid_whoauth.tests:groupfinder",
@@ -104,8 +102,7 @@ SETTINGS = {
     "who.plugin.dummyid.use": "pyramid_whoauth.tests:DummyRememberer",
     "who.identifiers.plugins": "dummyid basicauth",
     "who.authenticators.plugins": ["dummyauth"],
-    "who.challengers.plugins": "basicauth"
-}
+    "who.challengers.plugins": "basicauth"}
 
 
 def raise_forbidden(request):
@@ -154,19 +151,19 @@ class WhoAuthPolicyTests(unittest2.TestCase):
                     self.failUnless(expect_value in value)
                 break
         else:
-            msg = "No %r header was issued"     #pragma: nocover
-            assert False, msg % (expect_name,)  #pragma: nocover
+            msg = "No %r header was issued"     # pragma: nocover
+            assert False, msg % (expect_name,)  # pragma: nocover
 
     def failIfHeadersContain(self, headers, expect_name, expect_value=None):
         for name, value in headers:
             if name == expect_name:
-                if expect_value is None:                     #pragma: nocover
-                    msg = "Header %r was present"            #pragma: nocover
-                    assert False, msg % (expect_name,)       #pragma: nocover
-                elif expect_value in value:                  #pragma: nocover
-                    msg = "Header %r contained value %r"     #pragma: nocover
-                    msg = msg % (expect_name, expect_value)  #pragma: nocover
-                    assert False, msg                        #pragma: nocover
+                if expect_value is None:                     # pragma: nocover
+                    msg = "Header %r was present"            # pragma: nocover
+                    assert False, msg % (expect_name,)       # pragma: nocover
+                elif expect_value in value:                  # pragma: nocover
+                    msg = "Header %r contained value %r"     # pragma: nocover
+                    msg = msg % (expect_name, expect_value)  # pragma: nocover
+                    assert False, msg                        # pragma: nocover
 
     def test_authenticated_userid(self):
         policy = self.config.registry.getUtility(IAuthenticationPolicy)
@@ -258,7 +255,7 @@ class WhoAuthPolicyTests(unittest2.TestCase):
     def test_challenge_view_gets_invoked(self):
         app = self.config.make_wsgi_app()
         req = make_request(PATH_INFO="/forbidden")
-        def start_response(status, headers):
+        def start_response(status, headers):  # NOQA
             self.assertEquals(status, "401 Unauthorized")
             self.assertHeadersContain(headers, "WWW-Authenticate", "MyRealm")
         "".join(app(req.environ, start_response))
@@ -268,59 +265,65 @@ class WhoAuthPolicyTests(unittest2.TestCase):
         del policy.api_factory.challengers[:]
         app = self.config.make_wsgi_app()
         req = make_request(PATH_INFO="/forbidden")
-        def start_response(status, headers):
+        def start_response(status, headers):  # NOQA
             self.assertEquals(status, "403 Forbidden")
         "".join(app(req.environ, start_response))
 
     def test_login_view(self):
         app = self.config.make_wsgi_app()
+
         #  Requesting the login view with no credentials gives a challenge.
         req = make_request(PATH_INFO="/login",
                            QUERY_STRING="came_from=/somewhere")
-        def start_response(status, headers):
+        def start_response(status, headers):  # NOQA
             self.assertEquals(status, "401 Unauthorized")
             self.assertHeadersContain(headers, "WWW-Authenticate", "MyRealm")
         "".join(app(req.environ, start_response))
+
         #  Requesting the login view with basic-auth creds gives a redirect
         req = make_request(PATH_INFO="/login",
                            HTTP_AUTHORIZATION=GOOD_AUTHZ["test"],
                            QUERY_STRING="came_from=/somewhere")
-        def start_response(status, headers):
+        def start_response(status, headers):  # NOQA
             self.assertEquals(status, "302 Found")
             self.assertHeadersContain(headers, "Location", "/somewhere")
         "".join(app(req.environ, start_response))
+
         #  Requesting the login view with creds in params gives a redirect
         query_string = "came_from=/somewhere&login=test&password=test"
         req = make_request(PATH_INFO="/login",
                            QUERY_STRING=query_string)
-        def start_response(status, headers):
+        def start_response(status, headers):  # NOQA
             self.assertEquals(status, "302 Found")
             self.assertHeadersContain(headers, "Location", "/somewhere")
         "".join(app(req.environ, start_response))
+
         #  Requesting the login view with bad creds gives a challenge
         req = make_request(PATH_INFO="/login",
                            HTTP_AUTHORIZATION=BAD_AUTHZ["test"],
                            QUERY_STRING="came_from=/somewhere_outthere")
-        def start_response(status, headers):
+        def start_response(status, headers):  # NOQA
             self.assertEquals(status, "401 Unauthorized")
             self.assertHeadersContain(headers, "WWW-Authenticate", "MyRealm")
         "".join(app(req.environ, start_response))
 
     def test_logout_view(self):
         app = self.config.make_wsgi_app()
+
         #  Requesting the logout view with no creds gives challenge+redirect.
         req = make_request(PATH_INFO="/logout",
                            QUERY_STRING="came_from=/somewhere")
-        def start_response(status, headers):
+        def start_response(status, headers):  # NOQA
             self.assertEquals(status, "302 Found")
             self.assertHeadersContain(headers, "Location", "/somewhere")
             self.assertHeadersContain(headers, "WWW-Authenticate", "MyRealm")
         "".join(app(req.environ, start_response))
+
         #  Requesting the logout view with creds gives challenge+redirect.
         req = make_request(PATH_INFO="/logout",
                            HTTP_AUTHORIZATION=GOOD_AUTHZ["test"],
                            QUERY_STRING="came_from=/somewhere")
-        def start_response(status, headers):
+        def start_response(status, headers):  # NOQA
             self.assertEquals(status, "302 Found")
             self.assertHeadersContain(headers, "Location", "/somewhere")
             self.assertHeadersContain(headers, "WWW-Authenticate", "MyRealm")
@@ -328,23 +331,26 @@ class WhoAuthPolicyTests(unittest2.TestCase):
 
     def test_tween_sets_remember_headers(self):
         app = self.config.make_wsgi_app()
+
         #  Requesting a view with no creds should not try to remember me
         req = make_request(PATH_INFO="/ok")
-        def start_response(status, headers):
+        def start_response(status, headers):  # NOQA
             self.assertEquals(status, "200 OK")
             self.failIfHeadersContain(headers, "X-Dummy-Remember")
         "".join(app(req.environ, start_response))
+
         #  Requesting a view with bad creds should not try to remember me
         req = make_request(PATH_INFO="/ok",
                            HTTP_AUTHORIZATION=BAD_AUTHZ["test"])
-        def start_response(status, headers):
+        def start_response(status, headers):  # NOQA
             self.assertEquals(status, "200 OK")
             self.failIfHeadersContain(headers, "X-Dummy-Remember")
         "".join(app(req.environ, start_response))
+
         #  Requesting a view with good creds should try to remember me
         req = make_request(PATH_INFO="/ok",
                            HTTP_AUTHORIZATION=GOOD_AUTHZ["test"])
-        def start_response(status, headers):
+        def start_response(status, headers):  # NOQA
             self.assertEquals(status, "200 OK")
             self.assertHeadersContain(headers, "X-Dummy-Remember", "DUMMY")
         "".join(app(req.environ, start_response))
