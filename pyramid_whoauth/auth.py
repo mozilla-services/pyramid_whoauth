@@ -44,11 +44,10 @@ from zope.interface import implements
 from pyramid.interfaces import IAuthenticationPolicy
 from pyramid.security import Everyone, Authenticated
 
-from repoze.who.config import WhoConfig
-from repoze.who.api import APIFactory, get_api
 from repoze.who.utils import resolveDotted
 
-from pyramid_whoauth.utils import get_api, api_factory_from_settings
+from pyramid_whoauth.utils import (get_api, api_factory_from_settings,
+                                   ApplicationRedirectException)
 
 
 def _null_callback(userid, request):
@@ -110,7 +109,13 @@ class WhoAuthenticationPolicy(object):
         identity = request.environ.get("repoze.who.identity")
         if identity is None:
             api = get_api(request, self.api_factory)
+            # Call the repoze.who API to authenticate.
+            # If it sets environ["repoze.who.application"] then raise an
+            # exception so that this can be taken care of upstream.
+            app = request.environ.get("repoze.who.application")
             identity = api.authenticate()
+            if app is not request.environ.get("repoze.who.application"):
+                raise ApplicationRedirectException
             if identity is None:
                 return None
         return identity["repoze.who.userid"]

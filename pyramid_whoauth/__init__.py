@@ -47,14 +47,11 @@ __ver_tuple__ = (__ver_major__, __ver_minor__, __ver_patch__, __ver_sub__)
 __version__ = "%d.%d.%d%s" % __ver_tuple__
 
 
-from zope.interface import implements
-
 from repoze.who.api import IAPIFactory
 
-import pyramid.tweens
 from pyramid.authorization import ACLAuthorizationPolicy
 
-from pyramid_whoauth import utils, auth, views, tweens
+from pyramid_whoauth import utils, auth, views
 
 
 def includeme(config):
@@ -106,6 +103,4 @@ def includeme(config):
     config.add_view(views.logout, route_name=logout_route)
 
     # Set up a tween to handle response egress.
-    # It goes under the EXCVIEW tween so it can catch Forbidden and NotFound.
-    config.add_tween("pyramid_whoauth.tweens.whoauth_tween_factory",
-                     under=pyramid.tweens.EXCVIEW)
+    config.add_tween("pyramid_whoauth.tweens.whoauth_tween_factory")

@@ -43,6 +43,18 @@ from repoze.who.config import WhoConfig
 from repoze.who.api import IAPIFactory, APIFactory
 
 
+class ApplicationRedirectException(Exception):
+    """Control flow exception for redirecting the downstream app.
+
+    This exception is raised by the WhoAuthenticationPolicy when it detects
+    that a plugin is trying to redirect the downstream application by setting
+    environ["repoze.who.application"].  It will bubble up as an error in your
+    handler unless you have installed the pyramid_whoauth tween, which catches
+    the error and does the appropriate redirection.
+    """
+    pass
+
+
 def get_api(request, api_factory=None):
     """Get the repoze.who API object for use with the given request.
 
@@ -126,7 +138,7 @@ def api_factory_from_settings(settings, prefix="who."):
                              parser.mdproviders,
                              parser.request_classifier,
                              parser.challenge_decider)
- 
+
     # Cache it so we don't have to repeat all that work.
     settings[cache_key] = api_factory
     return api_factory
