@@ -50,7 +50,9 @@ from pyramid.exceptions import Forbidden
 from zope.interface import implements
 from repoze.who.interfaces import IAuthenticator, IIdentifier, IAPIFactory
 
-from pyramid_whoauth import WhoAuthenticationPolicy, whoauth_tween_factory
+from pyramid_whoauth.auth import WhoAuthenticationPolicy
+from pyramid_whoauth.tweens import whoauth_tween_factory
+from pyramid_whoauth.utils import get_api, api_factory_from_settings
 
 
 class DummyAuthenticator(object):
@@ -216,7 +218,6 @@ class WhoAuthPolicyTests(unittest2.TestCase):
         policy = self.config.registry.getUtility(IAuthenticationPolicy)
         req = make_request(HTTP_AUTHORIZATION=GOOD_AUTHZ["test"])
         headers = policy.forget(req)
-        print headers
         self.assertEquals(len(headers), 2)
         self.assertEquals(headers[0][0], "X-Dummy-Forget")
         self.assertEquals(headers[0][1], "DUMMY")
@@ -230,6 +231,18 @@ class WhoAuthPolicyTests(unittest2.TestCase):
         req = make_request(HTTP_AUTHORIZATION=GOOD_AUTHZ["test"])
         self.assertEquals(sorted(policy.effective_principals(req)),
                           [Authenticated, Everyone, "test"])
+
+    def test_default_api_factory(self):
+        policy = WhoAuthenticationPolicy()
+        self.assertEquals(policy.api_factory, None)
+        req = make_request(HTTP_AUTHORIZATION=GOOD_AUTHZ["test"])
+        self.assertEquals(sorted(policy.effective_principals(req)),
+                          [Authenticated, Everyone, "test"])
+
+    def test_caching_of_api_factory_from_settings(self):
+        policy = self.config.registry.getUtility(IAuthenticationPolicy)
+        api_factory = api_factory_from_settings(self.config.registry.settings)
+        self.failUnless(api_factory is policy.api_factory)
 
     def test_settings_from_config_file(self):
         with tempfile.NamedTemporaryFile() as f:
@@ -365,19 +378,9 @@ class WhoAuthPolicyTests(unittest2.TestCase):
             req.__dict__["registry"] = registry
             return req
         # Create the factory with no IAPIFactory registered.
-        # It should look up the api factory on the auth policy itself.
+        # It should grab the api from the request environ.
         registry.registerUtility(None, IAPIFactory)
         tween = whoauth_tween_factory(router.handle_request, registry)
-        req = _make_request(PATH_INFO="/ok",
-                            HTTP_AUTHORIZATION=GOOD_AUTHZ["test"])
-        response = tween(req)
-        self.assertHeadersContain(response.headerlist, "X-Dummy-Remember")
-        # Create the factory with no authentication policy registered.
-        # It should grab the api from the request environ.
-        policy = registry.getUtility(IAuthenticationPolicy)
-        registry.registerUtility(None, IAuthenticationPolicy)
-        tween = whoauth_tween_factory(router.handle_request, registry)
-        registry.registerUtility(policy, IAuthenticationPolicy)
         req = _make_request(PATH_INFO="/ok",
                             HTTP_AUTHORIZATION=GOOD_AUTHZ["test"])
         response = tween(req)
