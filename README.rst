@@ -21,7 +21,11 @@ it into an pyramid IAuthenticationPolicy::
 This will load the repoze.who configuration from the specified config file
 and hook it into Pyramid.
 
-For convenience, you can alo specify all of the repoze.who configuration
+The advantage of using pyramid_whoauth instead of the repoze.who middleware
+is that authentication is only performed when your application explicitly
+requests it using e.g. pyramid's authenticated_userid() function.
+
+For convenience, you can also specify all of the repoze.who configuration
 settings as part of your paster deployment settings.  For example, you
 might have the following::
 
