@@ -123,7 +123,7 @@ class WhoAuthenticationPolicy(object):
     def effective_principals(self, request):
         """Get the list of effective principals for the given request.
 
-        This method combines the authenticated userid return by repoze.who
+        This method combines the authenticated userid returned by repoze.who
         with the list of groups returned by the groupfinder callback, if any.
         """
         principals = [Everyone]

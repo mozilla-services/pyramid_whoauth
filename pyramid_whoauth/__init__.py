@@ -73,7 +73,7 @@ def includeme(config):
     # Hook up a default AuthorizationPolicy.
     # ACLAuthorizationPolicy is usually what you want.
     # If the app configures one explicitly then this will get overridden.
-    # In auto-commit mode this needs to be set for adding an authn policy.
+    # In auto-commit mode this needs to be set before adding an authn policy.
     authz_policy = ACLAuthorizationPolicy()
     config.set_authorization_policy(authz_policy)
 
