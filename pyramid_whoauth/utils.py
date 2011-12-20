@@ -58,7 +58,7 @@ class ApplicationRedirectException(Exception):
 def get_api(request, api_factory=None):
     """Get the repoze.who API object for use with the given request.
 
-    This function will lookup and returns the repoze.who API object to use
+    This function will lookup and return the repoze.who API object to use
     for the given request.  If no object exists then it gets the registered
     IAPIFactory utility and uses it to create one.
     """
