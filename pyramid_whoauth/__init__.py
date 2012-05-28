@@ -9,7 +9,7 @@ Pyramid authentication policy build on repoze.who.
 
 __ver_major__ = 0
 __ver_minor__ = 1
-__ver_patch__ = 1
+__ver_patch__ = 2
 __ver_sub__ = ""
 __ver_tuple__ = (__ver_major__, __ver_minor__, __ver_patch__, __ver_sub__)
 __version__ = "%d.%d.%d%s" % __ver_tuple__
@@ -18,6 +18,7 @@ __version__ = "%d.%d.%d%s" % __ver_tuple__
 from repoze.who.api import IAPIFactory
 
 from pyramid.authorization import ACLAuthorizationPolicy
+from pyramid.tweens import EXCVIEW
 
 from pyramid_whoauth import utils, auth, views
 
@@ -71,4 +72,7 @@ def includeme(config):
     config.add_view(views.logout, route_name=logout_route)
 
     # Set up a tween to handle response egress.
-    config.add_tween("pyramid_whoauth.tweens.whoauth_tween_factory")
+    # Place it directly above the EXCVIEW tween, to prevent other unrelated
+    # tweens from seeing our control-flow exceptions and getting confused.
+    config.add_tween("pyramid_whoauth.tweens.whoauth_tween_factory",
+                     over=EXCVIEW)
